@@ -11,29 +11,23 @@ class Program
 {
     static async Task InitMqttClient()
     {
-        Console.Write("Initializing MqttClient... ");
-        
         var mqttClientOptions = new MqttClientOptionsBuilder()
-                                    .WithTcpServer(serverAddress, serverPort)
-                                    .WithCredentials(serverUsername, serverPassword)
+                                    .WithTcpServer(MqttServerInfo.Address, MqttServerInfo.Port)
+                                    .WithCredentials(MqttServerInfo.Username, MqttServerInfo.Password)
                                     .Build();
 
         try
         {
-            var connectResult = await mqttClient.ConnectAsync(mqttClientOptions); /// @mhogan failing here.
+            var connectResult = await mqttClient.ConnectAsync(mqttClientOptions);
             isInitialized = connectResult.ResultCode == MqttClientConnectResultCode.Success;
-            Console.WriteLine("Done!");
-            return;
         }
         catch(OperationCanceledException)
         {
             Console.WriteLine($"Unable to connect to mqttClient (Operation Canceled)");
-            return;
         }
         catch(Exception e)
         {
             Console.WriteLine($"Caught some other exception: {e.Message}");
-            return;
         }
     }
 
@@ -89,8 +83,6 @@ class Program
             Console.WriteLine("Mqtt Client not connected. Quitting...");
         }
     }
-
-
     
     private static Subscriber<PingPongMsg>? pingPongSub;
     private static Publisher<PingPongMsg>? pingPongPub;
@@ -100,13 +92,9 @@ class Program
 
     private static IMqttClient? mqttClient;
     private static bool isInitialized = false;
-    // private static string serverAddress = "192.168.2.64";
     private static string serverAddress = "localhost";
     private static int serverPort = 1883;
     private static string serverUsername = "jcdenton";
     private static string serverPassword = "bionicman";
-    private static string topic = "/test/pingpong";
-
-
-    
+    private static string topic = "/test/pingpong";    
 }
