@@ -2,53 +2,86 @@
 // Console.WriteLine("Hello, World!");
 
 using System.Timers;
+using Mqtt;
+using MQTTnet;
+using MQTTnet.Client;
 using MQTTnet.Exceptions;
 
 class Program
 {
-    private static System.Timers.Timer? timer;
-    private static MqttExample? mqttExample;
-
-    private static void SetTimer()
+    static async Task InitMqttClient()
     {
-        // Create a timer with a two second interval.
-        timer = new System.Timers.Timer(2000);
-        // Hook up the Elapsed event for the timer. 
-        timer.Elapsed += OnTimedEvent;
-        timer.AutoReset = true;
-        timer.Enabled = true;
-        Console.WriteLine("Set timer!");
-    }
+        Console.Write("Initializing MqttClient... ");
+        
+        var mqttClientOptions = new MqttClientOptionsBuilder()
+                                    .WithTcpServer(serverAddress, serverPort)
+                                    .WithCredentials(serverUsername, serverPassword)
+                                    .Build();
 
-    private static async void OnTimedEvent(Object? source, ElapsedEventArgs e)
-    {
-        Console.WriteLine("The Elapsed event was raised at {0:HH:mm:ss.fff}",
-                          e.SignalTime);
-        Console.WriteLine("OnTimedEvent called...");
-        if (mqttExample is null)
+        try
         {
-            Console.WriteLine("Tried to publish a ping msg, but mqttExample is null!");
+            var connectResult = await mqttClient.ConnectAsync(mqttClientOptions); /// @mhogan failing here.
+            isInitialized = connectResult.ResultCode == MqttClientConnectResultCode.Success;
+            Console.WriteLine("Done!");
             return;
         }
-        await mqttExample.PublishMsg("ping");
+        catch(OperationCanceledException)
+        {
+            Console.WriteLine($"Unable to connect to mqttClient (Operation Canceled)");
+            return;
+        }
+        catch(Exception e)
+        {
+            Console.WriteLine($"Caught some other exception: {e.Message}");
+            return;
+        }
+    }
+
+    static async Task DeinitMqttClient()
+    {
+        if (isInitialized)
+        {
+            Console.WriteLine($"Disconnecting client associated with topic \"{topic}\"");
+            await mqttClient.DisconnectAsync();
+            isInitialized = false;
+        }
+    }
+
+    static void OnPingPongMsgCallback(string payload)
+    {
+        Console.WriteLine($"I heard: \"{payload}\"");
+        if (payload == "ping")
+        {
+            Console.WriteLine("Responding with pong.");
+            PingPongMsg msg = new();
+            msg.Msg = "pong";
+            _ =pingPongPub.Publish(msg);
+        }
     }
 
     static async Task Main(string[] args)
     {
+        var mqttFactory = new MqttFactory();
+        mqttClient = mqttFactory.CreateMqttClient();
+        
         try
         {
-            mqttExample = new();
-            await mqttExample.InitMqttClient();
+            await InitMqttClient();
 
-            if (!mqttExample.IsInitialized())
+            if (!IsInitialized())
             {
                 Console.WriteLine("mqttExample wasn't initialized!");
                 return;
             }
 
-            await mqttExample.Subscribe();
-            SetTimer();
-            // while (true) {}
+            pingPongSub = new(mqttClient);
+            pingPongPub = new(mqttClient);
+            periodicPingPongPub = new(mqttClient, 2000, false);
+            periodicPingPongPub.Msg.Msg = "ping";
+
+            await pingPongSub.Subscribe(OnPingPongMsgCallback);
+            periodicPingPongPub.Start();
+
             Console.ReadLine();
         }
         catch(MqttClientNotConnectedException)
@@ -56,4 +89,24 @@ class Program
             Console.WriteLine("Mqtt Client not connected. Quitting...");
         }
     }
+
+
+    
+    private static Subscriber<PingPongMsg>? pingPongSub;
+    private static Publisher<PingPongMsg>? pingPongPub;
+    private static PeriodicPublisher<PingPongMsg>? periodicPingPongPub;
+
+    public static bool IsInitialized() { return isInitialized; }
+
+    private static IMqttClient? mqttClient;
+    private static bool isInitialized = false;
+    // private static string serverAddress = "192.168.2.64";
+    private static string serverAddress = "localhost";
+    private static int serverPort = 1883;
+    private static string serverUsername = "jcdenton";
+    private static string serverPassword = "bionicman";
+    private static string topic = "/test/pingpong";
+
+
+    
 }

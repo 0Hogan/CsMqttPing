@@ -1,0 +1,6 @@
+# VS Code configuration
+.vscode
+
+# Build artifacts
+[B,b]in
+[O,o]bj
