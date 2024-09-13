@@ -18,6 +18,10 @@ class Program
 
         try
         {
+            if (mqttClient is null)
+            {
+                return;
+            }
             var connectResult = await mqttClient.ConnectAsync(mqttClientOptions);
             isInitialized = connectResult.ResultCode == MqttClientConnectResultCode.Success;
         }
@@ -46,10 +50,17 @@ class Program
         Console.WriteLine($"I heard: \"{payload}\"");
         if (payload == "ping")
         {
-            Console.WriteLine("Responding with pong.");
-            PingPongMsg msg = new();
-            msg.Msg = "pong";
-            _ =pingPongPub.Publish(msg);
+            if (pingPongPub is null)
+            {
+                Console.WriteLine("Can't respond with \"pong\"! pingPongPub is null!");
+            }
+            else
+            {
+                Console.WriteLine("Responding with pong.");
+                PingPongMsg msg = new();
+                msg.Msg = "pong";
+                _ = pingPongPub.Publish(msg);
+            }
         }
     }
 
