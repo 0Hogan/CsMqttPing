@@ -92,9 +92,5 @@ class Program
 
     private static IMqttClient? mqttClient;
     private static bool isInitialized = false;
-    private static string serverAddress = "localhost";
-    private static int serverPort = 1883;
-    private static string serverUsername = "jcdenton";
-    private static string serverPassword = "bionicman";
     private static string topic = "/test/pingpong";    
 }
